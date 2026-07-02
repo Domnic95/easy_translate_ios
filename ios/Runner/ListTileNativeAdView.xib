@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="22155" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22131"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" userLabel="First Responder"/>
+        <view contentMode="scaleToFill" id="rootView" customClass="ListTileNativeAdView" customModule="Runner" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="60"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="cardBg">
+                    <rect key="frame" x="0.0" y="0.0" width="375" height="60"/>
+                    <subviews>
+                        <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" translatesAutoresizingMaskIntoConstraints="NO" id="icon">
+                            <rect key="frame" x="10" y="8" width="44" height="44"/>
+                            <constraints>
+                                <constraint firstAttribute="width" constant="44" id="icon-w"/>
+                                <constraint firstAttribute="height" constant="44" id="icon-h"/>
+                            </constraints>
+                        </imageView>
+                        <!-- Ad badge — fixed 26x16 so the "Ad" text shows with the
+                             ~6pt horizontal + 1pt vertical breathing room that
+                             Android's paddingStart/End=6dp paddingTop/Bottom=1dp gives. -->
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="1000" verticalHuggingPriority="251" horizontalCompressionResistancePriority="1000" text="Ad" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="badge">
+                            <rect key="frame" x="64" y="11" width="26" height="16"/>
+                            <constraints>
+                                <constraint firstAttribute="width" constant="26" id="badge-w"/>
+                                <constraint firstAttribute="height" constant="16" id="badge-h"/>
+                            </constraints>
+                            <fontDescription key="fontDescription" type="boldSystem" pointSize="9"/>
+                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <color key="backgroundColor" red="0.231" green="0.51" blue="0.965" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="headline">
+                            <rect key="frame" x="96" y="11" width="180" height="16"/>
+                            <fontDescription key="fontDescription" type="boldSystem" pointSize="13"/>
+                            <nil key="textColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="body">
+                            <rect key="frame" x="64" y="32" width="212" height="14"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="11"/>
+                            <nil key="textColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <!-- CTA — contentEdgeInsets left/right=14 so the text gets
+                             Android's paddingStart/End=14dp inside the pill. -->
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="cta">
+                            <rect key="frame" x="282" y="13" width="83" height="34"/>
+                            <edgeInsets key="contentEdgeInsets" left="14" right="14"/>
+                            <constraints>
+                                <constraint firstAttribute="height" constant="34" id="cta-h"/>
+                                <constraint firstAttribute="width" relation="lessThanOrEqual" constant="140" id="cta-maxw"/>
+                            </constraints>
+                            <fontDescription key="fontDescription" type="boldSystem" pointSize="12"/>
+                            <state key="normal" title="Get It Now"/>
+                        </button>
+                        <view contentMode="scaleToFill" alpha="0.0" translatesAutoresizingMaskIntoConstraints="NO" id="media" customClass="MediaView" customModule="GoogleMobileAds">
+                            <rect key="frame" x="0.0" y="0.0" width="1" height="1"/>
+                            <constraints>
+                                <constraint firstAttribute="width" constant="1" id="media-w"/>
+                                <constraint firstAttribute="height" constant="1" id="media-h"/>
+                            </constraints>
+                        </view>
+                    </subviews>
+                    <constraints>
+                        <!-- Card horizontal padding: 10pt left + right (matches Android paddingStart/End=10dp). -->
+                        <constraint firstItem="icon" firstAttribute="leading" secondItem="cardBg" secondAttribute="leading" constant="10" id="c-icon-l"/>
+                        <constraint firstItem="icon" firstAttribute="centerY" secondItem="cardBg" secondAttribute="centerY" id="c-icon-cy"/>
+                        <!-- Card vertical padding: 6pt top + bottom minimum (matches Android paddingTop/Bottom=6dp). -->
+                        <constraint firstItem="icon" firstAttribute="top" secondItem="cardBg" secondAttribute="top" relation="greaterThanOrEqual" constant="6" id="c-icon-t"/>
+                        <constraint firstAttribute="bottom" secondItem="icon" secondAttribute="bottom" relation="greaterThanOrEqual" constant="6" id="c-icon-b"/>
+
+                        <!-- Badge: 10pt gap from icon trailing, vertically anchored to top of textCol area. -->
+                        <constraint firstItem="badge" firstAttribute="leading" secondItem="icon" secondAttribute="trailing" constant="10" id="c-badge-l"/>
+                        <constraint firstItem="badge" firstAttribute="top" secondItem="icon" secondAttribute="top" constant="3" id="c-badge-t"/>
+
+                        <!-- Headline: 6pt gap from badge trailing (matches Android marginEnd=6dp), centerY=badge. -->
+                        <constraint firstItem="headline" firstAttribute="leading" secondItem="badge" secondAttribute="trailing" constant="6" id="c-head-l"/>
+                        <constraint firstItem="headline" firstAttribute="centerY" secondItem="badge" secondAttribute="centerY" id="c-head-cy"/>
+                        <constraint firstItem="headline" firstAttribute="trailing" secondItem="cta" secondAttribute="leading" constant="-10" id="c-head-r"/>
+
+                        <!-- Body: starts under badge+headline row, 3pt gap below headline (matches Android marginTop=3dp). -->
+                        <constraint firstItem="body" firstAttribute="leading" secondItem="icon" secondAttribute="trailing" constant="10" id="c-body-l"/>
+                        <constraint firstItem="body" firstAttribute="top" secondItem="headline" secondAttribute="bottom" constant="3" id="c-body-t"/>
+                        <constraint firstItem="body" firstAttribute="trailing" secondItem="cta" secondAttribute="leading" constant="-10" id="c-body-r"/>
+
+                        <!-- CTA: 10pt from card trailing (matches Android marginStart=10dp), vertically centered. -->
+                        <constraint firstItem="cta" firstAttribute="centerY" secondItem="cardBg" secondAttribute="centerY" id="c-cta-cy"/>
+                        <constraint firstAttribute="trailing" secondItem="cta" secondAttribute="trailing" constant="10" id="c-cta-r"/>
+
+                        <!-- MediaView — kept off-screen at 1×1. -->
+                        <constraint firstItem="media" firstAttribute="top" secondItem="cardBg" secondAttribute="top" id="c-media-t"/>
+                        <constraint firstItem="media" firstAttribute="leading" secondItem="cardBg" secondAttribute="leading" id="c-media-l"/>
+                    </constraints>
+                </view>
+            </subviews>
+            <viewLayoutGuide key="safeArea" id="safeArea"/>
+            <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+            <constraints>
+                <constraint firstItem="cardBg" firstAttribute="leading" secondItem="rootView" secondAttribute="leading" id="r-cardBg-l"/>
+                <constraint firstItem="cardBg" firstAttribute="trailing" secondItem="rootView" secondAttribute="trailing" id="r-cardBg-r"/>
+                <constraint firstItem="cardBg" firstAttribute="top" secondItem="rootView" secondAttribute="top" id="r-cardBg-t"/>
+                <constraint firstItem="cardBg" firstAttribute="bottom" secondItem="rootView" secondAttribute="bottom" id="r-cardBg-b"/>
+            </constraints>
+            <connections>
+                <outlet property="adBadgeLabel" destination="badge" id="ob-badge"/>
+                <outlet property="bodyLabel" destination="body" id="ob-body"/>
+                <outlet property="cardView" destination="cardBg" id="ob-card"/>
+                <outlet property="ctaButton" destination="cta" id="ob-cta"/>
+                <outlet property="headlineLabel" destination="headline" id="ob-head"/>
+                <outlet property="iconImageView" destination="icon" id="ob-icon"/>
+                <outlet property="nativeMediaView" destination="media" id="ob-media"/>
+            </connections>
+            <point key="canvasLocation" x="0" y="0"/>
+        </view>
+    </objects>
+    <resources>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>

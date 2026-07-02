@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<document type="com.apple.InterfaceBuilder3.CocoaTouch.XIB" version="3.0" toolsVersion="22155" targetRuntime="iOS.CocoaTouch" propertyAccessControl="none" useAutolayout="YES" useTraitCollections="YES" useSafeAreas="YES" colorMatched="YES">
+    <device id="retina6_12" orientation="portrait" appearance="light"/>
+    <dependencies>
+        <plugIn identifier="com.apple.InterfaceBuilder.IBCocoaTouchPlugin" version="22131"/>
+        <capability name="Safe area layout guides" minToolsVersion="9.0"/>
+        <capability name="System colors in document resources" minToolsVersion="11.0"/>
+        <capability name="documents saved in the Xcode 8 format" minToolsVersion="8.0"/>
+    </dependencies>
+    <objects>
+        <placeholder placeholderIdentifier="IBFilesOwner" id="-1" userLabel="File's Owner"/>
+        <placeholder placeholderIdentifier="IBFirstResponder" id="-2" userLabel="First Responder"/>
+        <view contentMode="scaleToFill" id="rootView" customClass="ExpandedNativeAdView" customModule="Runner" customModuleProvider="target">
+            <rect key="frame" x="0.0" y="0.0" width="375" height="336"/>
+            <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
+            <subviews>
+                <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="cardBg">
+                    <rect key="frame" x="0.0" y="0.0" width="375" height="336"/>
+                    <subviews>
+                        <view contentMode="scaleToFill" translatesAutoresizingMaskIntoConstraints="NO" id="media" customClass="MediaView" customModule="GoogleMobileAds">
+                            <rect key="frame" x="8" y="8" width="359" height="180"/>
+                            <constraints>
+                                <constraint firstAttribute="height" constant="180" id="media-h"/>
+                            </constraints>
+                        </view>
+                        <imageView clipsSubviews="YES" userInteractionEnabled="NO" contentMode="scaleAspectFill" translatesAutoresizingMaskIntoConstraints="NO" id="icon">
+                            <rect key="frame" x="8" y="196" width="48" height="48"/>
+                            <constraints>
+                                <constraint firstAttribute="width" constant="48" id="icon-w"/>
+                                <constraint firstAttribute="height" constant="48" id="icon-h"/>
+                            </constraints>
+                        </imageView>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="headline">
+                            <rect key="frame" x="64" y="200" width="303" height="17"/>
+                            <fontDescription key="fontDescription" type="boldSystem" pointSize="14"/>
+                            <nil key="textColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="advertiser">
+                            <rect key="frame" x="64" y="223" width="303" height="14"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="11"/>
+                            <nil key="textColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="body">
+                            <rect key="frame" x="8" y="248" width="359" height="15"/>
+                            <fontDescription key="fontDescription" type="system" pointSize="12"/>
+                            <nil key="textColor"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                        <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="cta">
+                            <rect key="frame" x="8" y="276" width="359" height="52"/>
+                            <constraints>
+                                <constraint firstAttribute="height" constant="52" id="cta-h"/>
+                            </constraints>
+                            <fontDescription key="fontDescription" type="systemSemibold" pointSize="16"/>
+                            <state key="normal" title="Install">
+                                <color key="titleColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            </state>
+                        </button>
+                        <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="1000" horizontalCompressionResistancePriority="1000" text="Ad" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="badge">
+                            <rect key="frame" x="345" y="8" width="22" height="14"/>
+                            <fontDescription key="fontDescription" type="boldSystem" pointSize="9"/>
+                            <color key="textColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <color key="backgroundColor" red="0.231" green="0.51" blue="0.965" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                            <nil key="highlightedColor"/>
+                        </label>
+                    </subviews>
+                    <constraints>
+                        <constraint firstItem="media" firstAttribute="top" secondItem="cardBg" secondAttribute="top" constant="8" id="c-media-t"/>
+                        <constraint firstItem="media" firstAttribute="leading" secondItem="cardBg" secondAttribute="leading" constant="8" id="c-media-l"/>
+                        <constraint firstAttribute="trailing" secondItem="media" secondAttribute="trailing" constant="8" id="c-media-r"/>
+                        <constraint firstItem="icon" firstAttribute="top" secondItem="media" secondAttribute="bottom" constant="8" id="c-icon-t"/>
+                        <constraint firstItem="icon" firstAttribute="leading" secondItem="cardBg" secondAttribute="leading" constant="8" id="c-icon-l"/>
+                        <constraint firstItem="headline" firstAttribute="leading" secondItem="icon" secondAttribute="trailing" constant="8" id="c-head-l"/>
+                        <constraint firstItem="headline" firstAttribute="top" secondItem="icon" secondAttribute="top" constant="2" id="c-head-t"/>
+                        <constraint firstAttribute="trailing" secondItem="headline" secondAttribute="trailing" constant="8" id="c-head-r"/>
+                        <constraint firstItem="advertiser" firstAttribute="leading" secondItem="icon" secondAttribute="trailing" constant="8" id="c-adv-l"/>
+                        <constraint firstItem="advertiser" firstAttribute="top" secondItem="headline" secondAttribute="bottom" constant="2" id="c-adv-t"/>
+                        <constraint firstAttribute="trailing" secondItem="advertiser" secondAttribute="trailing" constant="8" id="c-adv-r"/>
+                        <constraint firstItem="body" firstAttribute="top" secondItem="icon" secondAttribute="bottom" constant="4" id="c-body-t"/>
+                        <constraint firstItem="body" firstAttribute="leading" secondItem="cardBg" secondAttribute="leading" constant="8" id="c-body-l"/>
+                        <constraint firstAttribute="trailing" secondItem="body" secondAttribute="trailing" constant="8" id="c-body-r"/>
+                        <constraint firstItem="cta" firstAttribute="top" secondItem="body" secondAttribute="bottom" constant="8" id="c-cta-t"/>
+                        <constraint firstItem="cta" firstAttribute="leading" secondItem="cardBg" secondAttribute="leading" constant="8" id="c-cta-l"/>
+                        <constraint firstAttribute="trailing" secondItem="cta" secondAttribute="trailing" constant="8" id="c-cta-r"/>
+                        <constraint firstAttribute="bottom" secondItem="cta" secondAttribute="bottom" constant="8" id="c-cta-b"/>
+                        <constraint firstItem="badge" firstAttribute="top" secondItem="cardBg" secondAttribute="top" constant="8" id="c-badge-t"/>
+                        <constraint firstAttribute="trailing" secondItem="badge" secondAttribute="trailing" constant="8" id="c-badge-r"/>
+                    </constraints>
+                </view>
+            </subviews>
+            <viewLayoutGuide key="safeArea" id="safeArea"/>
+            <color key="backgroundColor" systemColor="systemBackgroundColor"/>
+            <constraints>
+                <constraint firstItem="cardBg" firstAttribute="leading" secondItem="rootView" secondAttribute="leading" id="r-cardBg-l"/>
+                <constraint firstItem="cardBg" firstAttribute="trailing" secondItem="rootView" secondAttribute="trailing" id="r-cardBg-r"/>
+                <constraint firstItem="cardBg" firstAttribute="top" secondItem="rootView" secondAttribute="top" id="r-cardBg-t"/>
+                <constraint firstItem="cardBg" firstAttribute="bottom" secondItem="rootView" secondAttribute="bottom" id="r-cardBg-b"/>
+            </constraints>
+            <connections>
+                <outlet property="adBadgeLabel" destination="badge" id="ob-badge"/>
+                <outlet property="advertiserLabel" destination="advertiser" id="ob-adv"/>
+                <outlet property="bodyLabel" destination="body" id="ob-body"/>
+                <outlet property="cardView" destination="cardBg" id="ob-card"/>
+                <outlet property="ctaButton" destination="cta" id="ob-cta"/>
+                <outlet property="headlineLabel" destination="headline" id="ob-head"/>
+                <outlet property="iconImageView" destination="icon" id="ob-icon"/>
+                <outlet property="nativeMediaView" destination="media" id="ob-media"/>
+            </connections>
+            <point key="canvasLocation" x="0" y="0"/>
+        </view>
+    </objects>
+    <resources>
+        <systemColor name="systemBackgroundColor">
+            <color white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
+        </systemColor>
+    </resources>
+</document>
