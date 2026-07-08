@@ -271,8 +271,8 @@ class _Body extends StatelessWidget {
 
   static const double _adHeight = 60;
   static const double _pillHeight = 58;
-  static const double _adNavGap = 0;
-  static const double _gridAdGap = 16;
+  static const double _adNavGap = 5;
+  static const double _gridAdGap = 36;
 
   @override
   Widget build(BuildContext context) {

@@ -157,7 +157,6 @@ class _NativeAdManagerState extends State<NativeAdManager> {
   }
 
   static const double _visibleHeight = 60;
-  static const double _internalHeight = 120;
 
   @override
   Widget build(BuildContext context) {
@@ -174,14 +173,9 @@ class _NativeAdManagerState extends State<NativeAdManager> {
         ? const NativeAdShimmer(height: _visibleHeight)
         : ClipRRect(
             borderRadius: BorderRadius.circular(12),
-            child: OverflowBox(
-              alignment: Alignment.topCenter,
-              minHeight: _internalHeight,
-              maxHeight: _internalHeight,
-              child: SizedBox(
-                height: _internalHeight,
-                child: RepaintBoundary(child: AdWidget(ad: _nativeAd!)),
-              ),
+            child: SizedBox(
+              height: _visibleHeight,
+              child: RepaintBoundary(child: AdWidget(ad: _nativeAd!)),
             ),
           );
 
@@ -193,7 +187,7 @@ class _NativeAdManagerState extends State<NativeAdManager> {
         borderRadius: BorderRadius.circular(12),
         border: Border.all(width: 1.5, color: borderColor),
       ),
-      clipBehavior: loading ? Clip.antiAlias : Clip.none,
+      clipBehavior: Clip.antiAlias,
       child: inner,
     );
   }
