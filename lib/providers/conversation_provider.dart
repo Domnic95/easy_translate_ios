@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'deps.dart';
 import 'package:easy_translate/models/conversation_message.dart';
+import 'package:easy_translate/utils/error_messages.dart';
 import 'package:easy_translate/utils/speech_merge.dart';
 import 'package:flutter/foundation.dart';
 
@@ -303,7 +304,7 @@ class ConversationProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (req == _msgReqId) error = e.toString();
+      if (req == _msgReqId) error = friendlyTranslationError(e);
     } finally {
       if (req == _msgReqId) {
         isTranslating = false;

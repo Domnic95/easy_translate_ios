@@ -126,12 +126,8 @@ class TranslatorService {
         return isTarget ? 'en' : 'auto';
       case 'zh':
         return 'zh-cn';
-      case 'he':
-        return 'iw';
-      case 'jv':
-        return 'jw';
-      case 'fil':
-        return 'tl';
+      case 'jw':
+        return 'jv';
       default:
         return normalized;
     }

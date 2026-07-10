@@ -20,11 +20,11 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> {
-  static const _maxAdWait = Duration(seconds: 5);
-  static const _absoluteTimeout = Duration(seconds: 10);
+  static const _maxAdWait = Duration(seconds: 10);
+  static const _absoluteTimeout = Duration(seconds: 15);
   static const _reactorAttachDelay = Duration(seconds: 5);
   static const _maxConfigWait = Duration(seconds: 3);
-  static const _minSplashShown = Duration(milliseconds: 700);
+  static const _minSplashShown = Duration(seconds: 3);
 
   bool _navigated = false;
   Timer? _absoluteTimer;
@@ -63,7 +63,6 @@ class _SplashScreenState extends State<SplashScreen> {
     final minSplashShown = Future<void>.delayed(_minSplashShown);
     _absoluteTimer = Timer(_absoluteTimeout, () => _go(seen));
     reactorTimer = Timer(_reactorAttachDelay, () {
-      if (!mounted || _navigated) return;
       appLifecycleReactor.listenToAppStateChanges();
     });
 
@@ -87,7 +86,12 @@ class _SplashScreenState extends State<SplashScreen> {
     if (!mounted || _navigated) return;
 
     if (adReady) {
-      appOpenAdManager.showAdIfAvailable(onBeforeShow: () => _go(seen));
+      // Keep the splash on screen while the AppOpen ad shows on top. Only
+      // navigate to Home/Onboarding once the user has dismissed the ad.
+      // If the ad silently fails or the SDK never fires dismiss, the
+      // manager still fires this callback via its watchdog/fallback paths,
+      // so we never get stranded on splash.
+      appOpenAdManager.showAdIfAvailable(onAdDismissed: () => _go(seen));
     } else {
       _go(seen);
     }
@@ -137,6 +141,7 @@ class _SplashScreenState extends State<SplashScreen> {
   void _go(bool onboardingSeen) {
     if (_navigated || !mounted) return;
     _navigated = true;
+    appLifecycleReactor.listenToAppStateChanges();
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) =>

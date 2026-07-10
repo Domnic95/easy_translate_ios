@@ -1,8 +1,9 @@
 import 'dart:developer';
 
+import 'package:easy_translate/Google_Ads/Config.dart';
+import 'package:easy_translate/providers/deps.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'package:easy_translate/Google_Ads/Config.dart';
 
 class BannerAdManager extends StatefulWidget {
   final bool initLoad;
@@ -16,10 +17,15 @@ class _BannerAdManagerState extends State<BannerAdManager> {
   BannerAd? _bannerAd;
   bool _isLoaded = false;
   bool _loadStarted = false;
+  bool _shutOff = false;
+  int _lastShutdownRev = configController.adsShutdownRevision;
+  VoidCallback? _configListener;
 
   @override
   void initState() {
     super.initState();
+    _configListener = _onConfigChanged;
+    configController.addListener(_configListener!);
     _maybeStartLoad();
   }
 
@@ -33,8 +39,25 @@ class _BannerAdManagerState extends State<BannerAdManager> {
 
   @override
   void dispose() {
+    final l = _configListener;
+    if (l != null) configController.removeListener(l);
+    _configListener = null;
     _bannerAd?.dispose();
     super.dispose();
+  }
+
+  void _onConfigChanged() {
+    if (!mounted) return;
+    final rev = configController.adsShutdownRevision;
+    if (rev > _lastShutdownRev) {
+      _lastShutdownRev = rev;
+      _bannerAd?.dispose();
+      _bannerAd = null;
+      setState(() {
+        _isLoaded = false;
+        _shutOff = true;
+      });
+    }
   }
 
   void _maybeStartLoad() {
@@ -83,6 +106,7 @@ class _BannerAdManagerState extends State<BannerAdManager> {
 
   @override
   Widget build(BuildContext context) {
+    if (_shutOff) return const SizedBox.shrink();
     if (!_isLoaded || _bannerAd == null) return const SizedBox.shrink();
     return SizedBox(
       width: _bannerAd!.size.width.toDouble(),

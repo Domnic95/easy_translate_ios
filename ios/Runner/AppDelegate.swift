@@ -4,6 +4,59 @@ import CoreMotion
 import GoogleMobileAds
 import google_mobile_ads
 
+@objc(SafePickerFlutterViewController)
+final class SafePickerFlutterViewController: FlutterViewController {
+  override var prefersStatusBarHidden: Bool { return false }
+
+  override func present(
+    _ viewControllerToPresent: UIViewController,
+    animated flag: Bool,
+    completion: (() -> Void)? = nil
+  ) {
+    if SafePickerFlutterViewController.needsSafeAreaFix(viewControllerToPresent) {
+      viewControllerToPresent.modalPresentationStyle = .fullScreen
+
+      let topInset = view.window?.safeAreaInsets.top
+        ?? UIApplication.shared
+          .connectedScenes
+          .compactMap { $0 as? UIWindowScene }
+          .flatMap { $0.windows }
+          .first(where: { $0.isKeyWindow })?
+          .safeAreaInsets.top
+        ?? 0
+      if topInset > 0,
+         viewControllerToPresent.additionalSafeAreaInsets.top == 0 {
+        viewControllerToPresent.additionalSafeAreaInsets = UIEdgeInsets(
+          top: topInset,
+          left: 0,
+          bottom: 0,
+          right: 0
+        )
+      }
+    }
+
+    super.present(viewControllerToPresent, animated: flag, completion: completion)
+  }
+
+  private static func needsSafeAreaFix(_ vc: UIViewController) -> Bool {
+    if isPickerLike(vc) { return true }
+    if let nav = vc as? UINavigationController,
+       let top = nav.viewControllers.first,
+       isPickerLike(top) {
+      return true
+    }
+    return false
+  }
+
+  private static func isPickerLike(_ vc: UIViewController) -> Bool {
+    let name = String(describing: type(of: vc))
+    return name.contains("PHPicker")
+      || name.contains("ImagePicker")
+      || name.hasPrefix("PU")
+      || name.hasPrefix("_PU")
+  }
+}
+
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let motionManager = CMMotionManager()
@@ -166,7 +219,7 @@ final class ListTileNativeAdFactory: NSObject, FLTNativeAdFactory {
     badge.translatesAutoresizingMaskIntoConstraints = false
     badge.text = "Ad"
     badge.textColor = .white
-    badge.font = .systemFont(ofSize: 10, weight: .bold)
+    badge.font = .systemFont(ofSize: 12, weight: .bold)
     badge.backgroundColor = Brand.blue
     badge.layer.cornerRadius = 4
     badge.clipsToBounds = true
@@ -265,28 +318,24 @@ final class ListTileNativeAdFactory: NSObject, FLTNativeAdFactory {
     NSLayoutConstraint.activate([
       mainRow.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 10),
       mainRow.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -10),
-      mainRow.centerYAnchor.constraint(equalTo: adView.centerYAnchor),
+      mainRow.centerYAnchor.constraint(equalTo: adView.topAnchor, constant: 30),
       mainRow.topAnchor.constraint(greaterThanOrEqualTo: adView.topAnchor, constant: 6),
-      mainRow.bottomAnchor.constraint(lessThanOrEqualTo: adView.bottomAnchor, constant: -6),
 
       icon.widthAnchor.constraint(equalToConstant: 44),
       icon.heightAnchor.constraint(equalToConstant: 44),
 
-      badge.heightAnchor.constraint(greaterThanOrEqualToConstant: 14),
+      badge.heightAnchor.constraint(greaterThanOrEqualToConstant: 16),
 
       cta.heightAnchor.constraint(equalToConstant: 28),
       cta.widthAnchor.constraint(lessThanOrEqualToConstant: 140),
 
-      media.topAnchor.constraint(equalTo: adView.topAnchor),
+      media.bottomAnchor.constraint(equalTo: adView.bottomAnchor),
       media.leadingAnchor.constraint(equalTo: adView.leadingAnchor),
       media.widthAnchor.constraint(equalToConstant: 120),
       media.heightAnchor.constraint(equalToConstant: 120),
     ])
 
     adView.nativeAd = nativeAd
-    // The SDK can insert its own subviews when the native ad is assigned
-    // (e.g. media/video overlays). Force our row — and the "Ad" badge inside
-    // it — back to the front so it can never end up hidden behind SDK content.
     adView.bringSubviewToFront(mainRow)
     return adView
   }
@@ -384,7 +433,7 @@ final class ExpandedNativeAdFactory: NSObject, FLTNativeAdFactory {
     badge.translatesAutoresizingMaskIntoConstraints = false
     badge.text = "Ad"
     badge.textColor = .white
-    badge.font = .systemFont(ofSize: 10, weight: .bold)
+    badge.font = .systemFont(ofSize: 12, weight: .bold)
     badge.backgroundColor = Brand.blue
     badge.layer.cornerRadius = 4
     badge.clipsToBounds = true
@@ -436,15 +485,11 @@ final class ExpandedNativeAdFactory: NSObject, FLTNativeAdFactory {
       cta.bottomAnchor.constraint(equalTo: adView.bottomAnchor, constant: -8),
 
       badge.topAnchor.constraint(equalTo: adView.topAnchor, constant: 8),
-      badge.trailingAnchor.constraint(equalTo: adView.trailingAnchor, constant: -8),
-      badge.heightAnchor.constraint(greaterThanOrEqualToConstant: 16),
+      badge.leadingAnchor.constraint(equalTo: adView.leadingAnchor, constant: 8),
+      badge.heightAnchor.constraint(greaterThanOrEqualToConstant: 18),
     ])
 
     adView.nativeAd = nativeAd
-    // Same reasoning as the list-tile factory: guarantee the badge renders
-    // above anything the SDK adds once the native ad is assigned, since on
-    // iPad different ad creatives/media formats are more likely to trigger
-    // SDK-inserted overlay subviews that can otherwise cover it.
     adView.bringSubviewToFront(badge)
     return adView
   }

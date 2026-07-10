@@ -2,7 +2,7 @@ import 'dart:async';
 import 'deps.dart';
 
 import '../utils/constants.dart';
-import '../utils/extensions.dart';
+import '../utils/error_messages.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -31,7 +31,7 @@ class TranslationProvider extends ChangeNotifier {
   int _reqId = 0;
 
   void setInput(String value, {bool autoTranslate = true}) {
-    input = value.censored;
+    input = value;
     if (error != null) error = null;
     notifyListeners();
     if (autoTranslate && input.trim().isNotEmpty) {
@@ -73,21 +73,6 @@ class TranslationProvider extends ChangeNotifier {
     final text = input.trim();
     if (text.isEmpty) return;
 
-    if (text.hasCensorMark || text.hasProfanity) {
-      result = Translation(
-        id: DateTime.now().millisecondsSinceEpoch.toString(),
-        sourceText: text.censored,
-        translatedText: text.censored,
-        sourceLang: source.code,
-        targetLang: target.code,
-        createdAt: DateTime.now(),
-        origin: origin,
-      );
-      error = 'Profanity not translated.';
-      notifyListeners();
-      return;
-    }
-
     final req = ++_reqId;
     isLoading = true;
     error = null;
@@ -104,8 +89,8 @@ class TranslationProvider extends ChangeNotifier {
       if (req != _reqId) return;
       result = Translation(
         id: uuid.v4(),
-        sourceText: text.censored,
-        translatedText: out.censored,
+        sourceText: text,
+        translatedText: out,
         sourceLang: detected.isEmpty ? src : detected,
         targetLang: tgt,
         createdAt: DateTime.now(),
@@ -124,8 +109,13 @@ class TranslationProvider extends ChangeNotifier {
           ),
         );
       }
-    } catch (e) {
-      if (req == _reqId) error = e.toString();
+    } catch (e, st) {
+      debugPrint('[translate] $e\n$st');
+      if (req == _reqId) {
+        if (result == null) {
+          error = friendlyTranslationError(e);
+        }
+      }
     } finally {
       if (req == _reqId) {
         isLoading = false;

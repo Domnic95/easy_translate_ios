@@ -1,16 +1,150 @@
 import 'dart:async';
 import 'dart:developer';
 
+import 'package:easy_translate/Google_Ads/Config.dart';
+import 'package:easy_translate/Google_Ads/FullscreenAdCover.dart';
+import 'package:easy_translate/providers/deps.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:lottie/lottie.dart';
-import 'package:easy_translate/Google_Ads/Config.dart';
-import 'package:easy_translate/providers/deps.dart';
 
 class RewardAdManager {
   RewardedAd? _ad;
+  bool get isReady => _ad != null;
 
   static const _loadTimeout = Duration(seconds: 8);
+  static const _showWatchdog = Duration(seconds: 15);
+
+  Future<bool> preload() async {
+    if (_ad != null) return true;
+
+    final adsOn = await Config().showAds();
+    if (adsOn != true) return false;
+
+    final adUnitId = await Config().rewardAdUnitId();
+    if (adUnitId == null || adUnitId.isEmpty) return false;
+
+    final completer = Completer<bool>();
+    Timer? watchdog;
+    watchdog = Timer(_loadTimeout, () {
+      if (!completer.isCompleted) completer.complete(false);
+    });
+
+    try {
+      RewardedAd.load(
+        adUnitId: adUnitId,
+        request: const AdRequest(),
+        rewardedAdLoadCallback: RewardedAdLoadCallback(
+          onAdLoaded: (ad) {
+            watchdog?.cancel();
+            _ad = ad;
+            log('Reward: preloaded.');
+            if (!completer.isCompleted) completer.complete(true);
+          },
+          onAdFailedToLoad: (err) {
+            watchdog?.cancel();
+            log('Reward: preload failed: $err');
+            if (!completer.isCompleted) completer.complete(false);
+          },
+        ),
+      );
+    } catch (e) {
+      watchdog.cancel();
+      log('Reward: preload() threw: $e');
+      if (!completer.isCompleted) completer.complete(false);
+    }
+
+    return completer.future;
+  }
+
+  bool showPreloaded({void Function({required bool rewardEarned})? callback}) {
+    final ad = _ad;
+    if (ad == null) return false;
+    _ad = null;
+
+    var rewardEarned = false;
+    var completed = false;
+    void complete() {
+      if (completed) return;
+      completed = true;
+      try {
+        callback?.call(rewardEarned: rewardEarned);
+      } catch (e, st) {
+        log('Reward: caller callback threw: $e\n$st');
+      }
+    }
+
+    final cover = FullscreenAdCover.show();
+
+    Timer? showWatchdog;
+    var gateOpened = false;
+    void openGateOnce() {
+      if (gateOpened) return;
+      gateOpened = true;
+      nativeAdGate.open();
+    }
+
+    Future<void> teardown() async {
+      showWatchdog?.cancel();
+      showWatchdog = null;
+      try {
+        ad.dispose();
+      } catch (_) {}
+      openGateOnce();
+      await cover?.removeWithFade();
+    }
+
+    ad.fullScreenContentCallback = FullScreenContentCallback(
+      onAdShowedFullScreenContent: (_) {},
+      onAdDismissedFullScreenContent: (_) async {
+        await teardown();
+        complete();
+      },
+      onAdFailedToShowFullScreenContent: (_, error) async {
+        log('Reward: failed to show: $error');
+        await teardown();
+        complete();
+      },
+    );
+
+    try {
+      ad.show(
+        onUserEarnedReward: (_, reward) {
+          log(
+            'Reward: user earned amount=${reward.amount} type=${reward.type}',
+          );
+          rewardEarned = true;
+        },
+      );
+      showWatchdog = Timer(_showWatchdog, () async {
+        if (completed) return;
+        log(
+          'Reward: dismiss did not fire within '
+          '${_showWatchdog.inSeconds}s — forcing teardown.',
+        );
+        cover?.removeImmediate();
+        try {
+          ad.dispose();
+        } catch (_) {}
+        openGateOnce();
+        complete();
+      });
+    } catch (e) {
+      log('Reward: show() threw: $e');
+      teardown().whenComplete(complete);
+    }
+    return true;
+  }
+
+  void disposePreloaded() {
+    final ad = _ad;
+    if (ad != null) {
+      try {
+        ad.dispose();
+      } catch (_) {}
+    }
+    _ad = null;
+  }
 
   Future<void> loadAndShow({
     void Function({required bool rewardEarned})? callback,
@@ -47,8 +181,8 @@ class RewardAdManager {
       log('Reward: navigator context unavailable; skipping loader.');
     } else {
       try {
+        if (!ctx.mounted) return;
         showDialog<void>(
-          // ignore: use_build_context_synchronously
           context: ctx,
           barrierDismissible: false,
           barrierColor: Colors.black.withValues(alpha: 0.8),
@@ -81,43 +215,18 @@ class RewardAdManager {
       }
     }
 
-    Route<void>? coverRoute;
-    Future<void> pushBlackCover() async {
-      final state = navigatorKey.currentState;
-      if (state == null) return;
-      try {
-        coverRoute = PageRouteBuilder<void>(
-          settings: const RouteSettings(name: '/RewardAdBlackCover'),
-          opaque: true,
-          transitionDuration: Duration.zero,
-          reverseTransitionDuration: Duration.zero,
-          pageBuilder: (_, _, _) =>
-              const Scaffold(backgroundColor: Colors.black),
-        );
-        state.push(coverRoute!);
-        await Future.delayed(const Duration(milliseconds: 100));
-      } catch (e) {
-        log('Reward: pushBlackCover threw: $e');
-        coverRoute = null;
-      }
+    FullscreenAdCover? cover;
+    var gateOpened = false;
+    void openGateOnce() {
+      if (gateOpened) return;
+      gateOpened = true;
+      nativeAdGate.open();
     }
 
-    void popBlackCover() {
-      final route = coverRoute;
-      coverRoute = null;
-      if (route == null) return;
-      final state = navigatorKey.currentState;
-      if (state == null) return;
-      try {
-        state.removeRoute(route);
-      } catch (e) {
-        log('Reward: popBlackCover removeRoute threw: $e');
-      }
-    }
-
-    void teardown() {
+    Future<void> teardown() async {
       dismissLoader();
-      popBlackCover();
+      final c = cover;
+      cover = null;
       final ad = _ad;
       if (ad != null) {
         try {
@@ -125,14 +234,15 @@ class RewardAdManager {
         } catch (_) {}
         _ad = null;
       }
+      openGateOnce();
+      if (c != null) await c.removeWithFade();
     }
 
     Timer? watchdog;
     watchdog = Timer(_loadTimeout, () {
       if (completed) return;
       log('Reward: load timed out after ${_loadTimeout.inSeconds}s.');
-      teardown();
-      complete();
+      teardown().whenComplete(complete);
     });
 
     try {
@@ -151,36 +261,52 @@ class RewardAdManager {
             log('Reward: loaded.');
             dismissLoader();
             _ad = ad;
-            await pushBlackCover();
+            cover = FullscreenAdCover.show();
 
+            Timer? showWatchdog;
             ad.fullScreenContentCallback = FullScreenContentCallback(
-              onAdShowedFullScreenContent: (ad) {},
-              onAdDismissedFullScreenContent: (ad) {
-                teardown();
+              onAdShowedFullScreenContent: (_) {},
+              onAdDismissedFullScreenContent: (_) async {
+                showWatchdog?.cancel();
+                await teardown();
                 complete();
-                nativeAdGate.open();
               },
-              onAdFailedToShowFullScreenContent: (ad, error) {
+              onAdFailedToShowFullScreenContent: (_, error) async {
                 log('Reward: failed to show: $error');
-                teardown();
+                showWatchdog?.cancel();
+                await teardown();
                 complete();
-                nativeAdGate.open();
               },
             );
 
             try {
               ad.show(
-                onUserEarnedReward: (ad, reward) {
+                onUserEarnedReward: (_, reward) {
                   log(
-                    'Reward: user earned reward '
-                    'amount=${reward.amount} type=${reward.type}',
+                    'Reward: user earned amount=${reward.amount} '
+                    'type=${reward.type}',
                   );
                   rewardEarned = true;
                 },
               );
+              showWatchdog = Timer(_showWatchdog, () async {
+                if (completed) return;
+                log(
+                  'Reward: dismiss did not fire within '
+                  '${_showWatchdog.inSeconds}s — forcing teardown.',
+                );
+                cover?.removeImmediate();
+                cover = null;
+                try {
+                  ad.dispose();
+                } catch (_) {}
+                _ad = null;
+                openGateOnce();
+                complete();
+              });
             } catch (e) {
               log('Reward: show() threw: $e');
-              teardown();
+              await teardown();
               complete();
             }
           },
@@ -188,6 +314,7 @@ class RewardAdManager {
             watchdog?.cancel();
             log('Reward: failed to load: $error');
             dismissLoader();
+            openGateOnce();
             complete();
           },
         ),
@@ -195,8 +322,7 @@ class RewardAdManager {
     } catch (e) {
       log('Reward: load() threw synchronously: $e');
       watchdog.cancel();
-      teardown();
-      complete();
+      teardown().whenComplete(complete);
     }
   }
 }

@@ -1,10 +1,10 @@
 # Easy Translate
 
-A Flutter translator app — text, voice, face-to-face conversation, and camera/gallery OCR translation across **100+ languages**, with translation history (single + multi-select delete with undo), favorites, profanity filtering, schema-versioned settings, Material 3 light/dark/system theming, and a full Google AdMob layer (AppOpen, Banner, Native, Interstitial) gated by remote config.
+A Flutter translator app — text, voice, face-to-face conversation, and camera/gallery OCR translation across **100+ languages**, with translation history (single + multi-select delete with undo), favorites, schema-versioned settings, Material 3 light/dark/system theming, and a full Google AdMob layer (AppOpen, Banner, Native, Interstitial) gated by remote config.
 
 ## Features
 
-- **Text translation** with auto language detection, swap button, inline Lottie loader, voice input/output, and profanity-masked output
+- **Text translation** with auto language detection, swap button, inline Lottie loader, and voice input/output
 - **Voice translation** — speech-to-text → translate → text-to-speech, auto re-translates when you change either language. Auto-speak is gated by the global `autoSpeak` setting
 - **Face-to-face conversation** — two presentation modes the user can switch between in settings:
   - **Face mode** — Ludo-style split layout, top panel rotated 180° so the person opposite reads their own language right-side-up
@@ -15,7 +15,6 @@ A Flutter translator app — text, voice, face-to-face conversation, and camera/
 - **Multi-script OCR** — Latin, Devanagari, Chinese, Japanese, and Korean recognizers run in parallel per language hint, then dedupe by bounding-box overlap so mixed-script signs come out clean
 - **History** with search, **swipe-to-delete** on individual rows, **long-press to multi-select** with bulk delete, both with 3-second floating-snackbar Undo. Writes are gated by the `saveHistory` setting
 - **Favorites** with star toggle
-- **Profanity filter** — censors at input time and refuses to translate masked text
 - **Material 3** light / dark / system, with a visual three-card theme picker (system shows a diagonal split). Adaptive switches and sliders so iOS sees Cupertino chrome and Android sees Material chrome
 - **Settings** — defaults for source/target language, auto-speak toggle, speech rate slider, save-history toggle, conversation mode, plus a **Reset to defaults** button with a stylish destructive-red confirmation dialog that refreshes every provider's in-flight state via `applyDefaults()`
 - **Settings schema migration** — bumping `AppSettings.schemaVersion` runs one-shot migrations on existing installs (current version: **3**)
@@ -114,7 +113,7 @@ lib/
 │
 ├── utils/
 │   ├── constants.dart               strings, language list, box keys
-│   ├── extensions.dart              BuildContext + String (profanity filter)
+│   ├── extensions.dart              BuildContext + String helpers
 │   ├── speech_merge.dart            smartMergeSpeech — overlap-aware glue
 │   └── theme.dart                   Material 3 light / dark themes
 │
@@ -297,7 +296,6 @@ Every accessor in `Config.dart` hits the cached `ConfigModel`; if remote config 
 ## Notes
 
 - The translator package is unofficial — for production traffic, swap `TranslatorService` for a paid API (Google Cloud Translation, DeepL, etc.); nothing else needs to change. `TranslatorService` already handles chunking, per-call timeouts (15 s), up to 4 retries, completeness scoring, and HTML-entity decoding.
-- The profanity filter is a small English word list in `utils/extensions.dart` (`StringX.censored`). Load from remote config to cover more locales.
 - Hive stores rows as plain `Map`s so models can evolve without re-running `build_runner`. Schema-breaking changes go through the `SettingsRepository` migration path.
 - TTS is pre-warmed in `main()` so the first speak call after launch doesn't pay platform engine cold-start. All TTS calls outside the text-translate screen check `currentAppSettings.autoSpeak` first.
 - Conversation sessions are wiped on every screen entry — long-lived transcripts live in the History screen.

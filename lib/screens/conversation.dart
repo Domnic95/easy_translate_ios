@@ -1,20 +1,22 @@
-import '../utils/constants.dart';
-import '../utils/extensions.dart';
+import 'dart:async';
 
-import 'package:intl/intl.dart';
-import 'package:lottie/lottie.dart';
-import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
-import 'package:share_plus/share_plus.dart';
-
-import 'package:easy_translate/models/language.dart';
+import 'package:easy_translate/Google_Ads/AdPools.dart';
+import 'package:easy_translate/Google_Ads/Native_Ads/NativeAdManager.dart';
+import 'package:easy_translate/Google_Ads/ShowAds.dart';
 import 'package:easy_translate/models/conversation_message.dart';
+import 'package:easy_translate/models/language.dart';
 import 'package:easy_translate/providers/conversation_provider.dart';
 import 'package:easy_translate/providers/deps.dart';
 import 'package:easy_translate/providers/settings_provider.dart';
 import 'package:easy_translate/widgets/language_picker.dart';
-import 'package:easy_translate/Google_Ads/BannerAds/BannerAdManager.dart';
-import 'package:easy_translate/Google_Ads/RewardAds/RewardAdManager.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:lottie/lottie.dart';
+import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
+
+import '../utils/constants.dart';
+import '../utils/extensions.dart';
 
 class ConversationScreen extends StatefulWidget {
   const ConversationScreen({super.key});
@@ -24,6 +26,9 @@ class ConversationScreen extends StatefulWidget {
 
 class _ConversationScreenState extends State<ConversationScreen> {
   ConversationProvider? _provider;
+
+  bool _backHandling = false;
+  Timer? _backFallback;
 
   @override
   void initState() {
@@ -45,8 +50,27 @@ class _ConversationScreenState extends State<ConversationScreen> {
 
   @override
   void dispose() {
+    _backFallback?.cancel();
     _provider?.resetAll();
     super.dispose();
+  }
+
+  Future<void> _handleBack() async {
+    if (_backHandling) return;
+    _backHandling = true;
+
+    final navigator = Navigator.of(context);
+
+    void doPop() {
+      _backFallback?.cancel();
+      _backFallback = null;
+      if (!mounted) return;
+      if (navigator.canPop()) navigator.pop();
+      _backHandling = false;
+    }
+
+    _backFallback = Timer(const Duration(milliseconds: 2500), doPop);
+    ShowInterstitialAds().showBackInterstitialAds(onBeforeShow: doPop);
   }
 
   Widget _layoutPicker(SettingsProvider sp, bool isChat) {
@@ -148,47 +172,56 @@ class _ConversationScreenState extends State<ConversationScreen> {
     final mode = sp.settings.conversationMode;
     final isChat = mode == ConversationMode.chat;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text(S.conversation),
-        bottom: p.isRetranslating ? const _RetranslatingBar() : null,
-        actions: [
-          if (!isChat) _layoutPicker(sp, isChat),
-          IconButton(
-            tooltip: 'Export',
-            onPressed: p.messages.isEmpty
-                ? null
-                : () => RewardAdManager().loadAndShow(
-                    callback: ({required bool rewardEarned}) {
-                      SharePlus.instance.share(
-                        ShareParams(text: p.exportText()),
-                      );
-                    },
-                  ),
-            icon: const Icon(Icons.ios_share_rounded),
-          ),
-          if (isChat) ...[
-            _layoutPicker(sp, isChat),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text(S.conversation),
+          bottom: p.isRetranslating ? const _RetranslatingBar() : null,
+          actions: [
+            if (!isChat) _layoutPicker(sp, isChat),
             IconButton(
-              tooltip: 'Clear',
+              tooltip: 'Export',
               onPressed: p.messages.isEmpty
                   ? null
-                  : () => _confirmClear(context, p),
-              icon: const Icon(Icons.delete_outline_rounded),
+                  : () => RewardAdPool.instance.show(
+                      callback: ({required bool rewardEarned}) {
+                        SharePlus.instance.share(
+                          ShareParams(text: p.exportText()),
+                        );
+                      },
+                    ),
+              icon: const Icon(Icons.ios_share_rounded),
             ),
+            if (isChat) ...[
+              _layoutPicker(sp, isChat),
+              IconButton(
+                tooltip: 'Clear',
+                onPressed: p.messages.isEmpty
+                    ? null
+                    : () => _confirmClear(context, p),
+                icon: const Icon(Icons.delete_outline_rounded),
+              ),
+            ],
           ],
-        ],
-      ),
-      body: IndexedStack(
-        index: isChat ? 0 : 1,
-        children: [
-          _ChatView(provider: p, isActive: isChat),
-          _FaceView(provider: p),
-        ],
-      ),
-      bottomNavigationBar: Offstage(
-        offstage: isChat,
-        child: BannerAdManager(initLoad: !isChat),
+        ),
+        body: IndexedStack(
+          index: isChat ? 0 : 1,
+          children: [
+            _ChatView(provider: p, isActive: isChat),
+            _FaceView(provider: p),
+          ],
+        ),
+        bottomNavigationBar: isChat
+            ? Container(color: context.colors.outlineVariant, height: 15)
+            : Padding(
+                padding: const EdgeInsets.only(bottom: 20),
+                child: const NativeAdManager(),
+              ),
       ),
     );
   }
@@ -280,6 +313,7 @@ class _FaceView extends StatelessWidget {
               ),
             ),
           ),
+        // SafeArea(child: const NativeAdManager()),
       ],
     );
   }
@@ -646,8 +680,11 @@ class _ChatViewState extends State<_ChatView> {
           ),
         Align(
           alignment: Alignment.center,
-          child: BannerAdManager(initLoad: widget.isActive),
+          child: widget.isActive
+              ? const NativeAdManager()
+              : const SizedBox.shrink(),
         ),
+        const SizedBox(height: 5),
         _ChatComposer(provider: p),
       ],
     );
@@ -1134,8 +1171,7 @@ class _ComposerMicButton extends StatelessWidget {
   }
 }
 
-class _RetranslatingBar extends StatelessWidget
-    implements PreferredSizeWidget {
+class _RetranslatingBar extends StatelessWidget implements PreferredSizeWidget {
   const _RetranslatingBar();
 
   @override

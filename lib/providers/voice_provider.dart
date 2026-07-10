@@ -3,6 +3,7 @@ import 'deps.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:easy_translate/models/translation.dart';
+import 'package:easy_translate/utils/error_messages.dart';
 import 'package:easy_translate/utils/speech_merge.dart';
 
 class VoiceProvider extends ChangeNotifier {
@@ -104,7 +105,7 @@ class VoiceProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (req == _reqId) error = e.toString();
+      if (req == _reqId) error = friendlyTranslationError(e);
     } finally {
       if (req == _reqId) {
         isTranslating = false;
@@ -264,7 +265,7 @@ class VoiceProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (session == _reqId) error = e.toString();
+      if (session == _reqId) error = friendlyTranslationError(e);
     } finally {
       if (session == _reqId) {
         isTranslating = false;

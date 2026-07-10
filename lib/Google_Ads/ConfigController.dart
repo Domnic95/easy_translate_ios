@@ -11,6 +11,8 @@ class ConfigController extends ChangeNotifier {
 
   static ConfigModel? _memo;
   static ConfigModel? get cached => _memo;
+  int _adsShutdownRevision = 0;
+  int get adsShutdownRevision => _adsShutdownRevision;
 
   Future<bool> fetchConfig() async {
     try {
@@ -28,7 +30,15 @@ class ConfigController extends ChangeNotifier {
       if (response.statusCode == 200) {
         final configModel = configModelFromJson(response.body.toString());
         log(configModelToJson(configModel).toString());
+        final prior = _memo?.extraParam.adsOnOff;
         _memo = configModel;
+        if (prior == true && configModel.extraParam.adsOnOff == false) {
+          _adsShutdownRevision++;
+          log(
+            '[ConfigController] adsOnOff flipped true→false; '
+            'revision=$_adsShutdownRevision',
+          );
+        }
         await saveConfigToSharedPreferences(configModel);
         isCall = true;
         notifyListeners();

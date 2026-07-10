@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:easy_translate/models/translation.dart';
+import 'package:easy_translate/utils/error_messages.dart';
 
 import 'deps.dart';
 import 'package:flutter/foundation.dart';
@@ -88,7 +89,7 @@ class OcrProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (req == _reqId) error = e.toString();
+      if (req == _reqId) error = friendlyTranslationError(e);
     } finally {
       if (req == _reqId && isLoading) {
         isLoading = false;
@@ -178,7 +179,7 @@ class OcrProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      if (req == _reqId) error = e.toString();
+      if (req == _reqId) error = friendlyTranslationError(e);
     } finally {
       if (req == _reqId && isLoading) {
         isLoading = false;

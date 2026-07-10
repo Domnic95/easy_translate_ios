@@ -115,6 +115,10 @@ class _TextTranslateScreenState extends State<TextTranslateScreen> {
                           onChanged: p.setInput,
                           maxLines: 6,
                           minLines: 3,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          smartDashesType: SmartDashesType.disabled,
+                          smartQuotesType: SmartQuotesType.disabled,
                           decoration: const InputDecoration(
                             hintText: 'Enter text to translate…',
                             border: InputBorder.none,

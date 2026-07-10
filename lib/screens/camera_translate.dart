@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:camera/camera.dart';
+import 'package:easy_translate/Google_Ads/ShowAds.dart';
 import 'package:easy_translate/models/language.dart';
 import 'package:easy_translate/providers/deps.dart';
 import 'package:easy_translate/services/ocr_service.dart';
@@ -39,6 +40,27 @@ class _CameraTranslateScreenState extends State<CameraTranslateScreen>
   List<TranslationOverlayBlock> _blocks = [];
   int _captureReq = 0;
   final Set<String> _tempFiles = {};
+
+  bool _backHandling = false;
+  Timer? _backFallback;
+
+  Future<void> _handleBack() async {
+    if (_backHandling) return;
+    _backHandling = true;
+
+    final navigator = Navigator.of(context);
+
+    void doPop() {
+      _backFallback?.cancel();
+      _backFallback = null;
+      if (!mounted) return;
+      if (navigator.canPop()) navigator.pop();
+      _backHandling = false;
+    }
+
+    _backFallback = Timer(const Duration(milliseconds: 2500), doPop);
+    ShowInterstitialAds().showBackInterstitialAds(onBeforeShow: doPop);
+  }
 
   void _trackTemp(String path) {
     _tempFiles.add(path);
@@ -220,6 +242,7 @@ class _CameraTranslateScreenState extends State<CameraTranslateScreen>
 
   @override
   void dispose() {
+    _backFallback?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     if (Platform.isIOS) {
       unawaited(
@@ -542,7 +565,13 @@ class _CameraTranslateScreenState extends State<CameraTranslateScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
@@ -557,7 +586,7 @@ class _CameraTranslateScreenState extends State<CameraTranslateScreen>
                   targetCode: _target,
                   torchOn: _torchOn,
                   showTorch: _capturedPath == null && _ctrl != null,
-                  onClose: () => Navigator.of(context).maybePop(),
+                  onClose: _handleBack,
                   onPickSource: _pickSource,
                   onPickTarget: _pickTarget,
                   onSwap: _swapLangs,
@@ -595,6 +624,7 @@ class _CameraTranslateScreenState extends State<CameraTranslateScreen>
             ),
           ),
         ],
+      ),
       ),
     );
   }

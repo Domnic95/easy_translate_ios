@@ -1,13 +1,11 @@
 import 'dart:developer';
 import 'dart:ui';
 
+import 'package:easy_translate/Google_Ads/AdPools.dart';
 import 'package:easy_translate/Google_Ads/Config.dart';
-import 'package:easy_translate/Google_Ads/InterstitialAds/InterstitialAdManager.dart';
 import 'package:easy_translate/Google_Ads/SpHelper.dart';
 
 class ShowInterstitialAds {
-  InterstitialAdManager adManager = InterstitialAdManager();
-
   Future<void> showClickInterstitialAds({
     VoidCallback? callback,
     VoidCallback? onBeforeShow,
@@ -20,7 +18,10 @@ class ShowInterstitialAds {
     final adsOn = await Config().showAds();
 
     if (interval != 0 && currentClick % interval == 0 && adsOn) {
-      adManager.loadAd(callback: callback, onBeforeShow: onBeforeShow);
+      await InterstitialAdPool.instance.show(
+        callback: callback,
+        onBeforeShow: onBeforeShow,
+      );
       await SpHelper.resetClick();
     } else {
       log(
@@ -32,11 +33,14 @@ class ShowInterstitialAds {
     }
   }
 
-  void showAlwaysInterstitialAds({
+  Future<void> showAlwaysInterstitialAds({
     VoidCallback? callback,
     VoidCallback? onBeforeShow,
   }) {
-    adManager.loadAd(callback: callback, onBeforeShow: onBeforeShow);
+    return InterstitialAdPool.instance.show(
+      callback: callback,
+      onBeforeShow: onBeforeShow,
+    );
   }
 
   Future<void> showBackInterstitialAds({
@@ -55,7 +59,10 @@ class ShowInterstitialAds {
         '[ShowInterstitialAds] back show: '
         'click=$currentClick interval=$interval',
       );
-      adManager.loadAd(callback: callback, onBeforeShow: onBeforeShow);
+      await InterstitialAdPool.instance.show(
+        callback: callback,
+        onBeforeShow: onBeforeShow,
+      );
       await SpHelper.resetBackClick();
     } else {
       log(

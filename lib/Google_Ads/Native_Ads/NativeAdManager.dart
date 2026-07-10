@@ -1,5 +1,6 @@
 import 'dart:developer';
 
+import 'package:easy_translate/Google_Ads/AdPools.dart';
 import 'package:easy_translate/Google_Ads/ConfigController.dart';
 import 'package:easy_translate/Google_Ads/ConfigModel.dart';
 import 'package:easy_translate/Google_Ads/Native_Ads/NativeAdShimmer.dart';
@@ -20,7 +21,15 @@ class _NativeAdManagerState extends State<NativeAdManager> {
   bool _isLoaded = false;
   bool _failed = false;
   bool? _currentIsDark;
+  int _lastShutdownRev = configController.adsShutdownRevision;
   VoidCallback? _configListener;
+
+  @override
+  void initState() {
+    super.initState();
+    _configListener = _onConfigChanged;
+    configController.addListener(_configListener!);
+  }
 
   @override
   void didChangeDependencies() {
@@ -41,31 +50,50 @@ class _NativeAdManagerState extends State<NativeAdManager> {
 
   @override
   void dispose() {
-    _detachConfigListener();
+    final l = _configListener;
+    if (l != null) configController.removeListener(l);
+    _configListener = null;
+    _detachConfigWaitListener();
     _nativeAd?.dispose();
     super.dispose();
   }
 
-  void _detachConfigListener() {
-    final l = _configListener;
+  VoidCallback? _configWaitListener;
+
+  void _detachConfigWaitListener() {
+    final l = _configWaitListener;
     if (l == null) return;
     configController.removeListener(l);
-    _configListener = null;
+    _configWaitListener = null;
   }
 
   void _waitForConfigAndRetry({required bool isDark}) {
-    if (_configListener != null) return;
+    if (_configWaitListener != null) return;
     void listener() {
       if (ConfigController.cached == null) return;
-      _detachConfigListener();
+      _detachConfigWaitListener();
       log('Native: config arrived, retrying load.');
       _initIfEnabled(isDark: isDark);
     }
 
-    _configListener = listener;
+    _configWaitListener = listener;
     configController.addListener(listener);
     if (ConfigController.cached != null) {
       listener();
+    }
+  }
+
+  void _onConfigChanged() {
+    if (!mounted) return;
+    final rev = configController.adsShutdownRevision;
+    if (rev > _lastShutdownRev) {
+      _lastShutdownRev = rev;
+      _nativeAd?.dispose();
+      _nativeAd = null;
+      setState(() {
+        _isLoaded = false;
+        _failed = true;
+      });
     }
   }
 
@@ -117,6 +145,18 @@ class _NativeAdManagerState extends State<NativeAdManager> {
       if (!mounted) return;
     }
 
+    final pooled = NativeAdPool.instance.take('listTile', isDark: isDark);
+    if (pooled != null) {
+      if (!mounted) {
+        pooled.dispose();
+        return;
+      }
+      _nativeAd?.dispose();
+      _nativeAd = pooled;
+      setState(() => _isLoaded = true);
+      return;
+    }
+
     final ad = NativeAd(
       adUnitId: adUnitId,
       request: const AdRequest(),
@@ -124,7 +164,7 @@ class _NativeAdManagerState extends State<NativeAdManager> {
       listener: NativeAdListener(
         onAdLoaded: (loaded) {
           log('$loaded loaded.');
-          _detachConfigListener();
+          _detachConfigWaitListener();
           if (!mounted) {
             loaded.dispose();
             return;
@@ -157,6 +197,7 @@ class _NativeAdManagerState extends State<NativeAdManager> {
   }
 
   static const double _visibleHeight = 60;
+  static const double _nativeAdViewHeight = 180;
 
   @override
   Widget build(BuildContext context) {
@@ -171,11 +212,15 @@ class _NativeAdManagerState extends State<NativeAdManager> {
     final loading = !_isLoaded || _nativeAd == null;
     final inner = loading
         ? const NativeAdShimmer(height: _visibleHeight)
-        : ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+        : ClipRect(
             child: SizedBox(
               height: _visibleHeight,
-              child: RepaintBoundary(child: AdWidget(ad: _nativeAd!)),
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: _nativeAdViewHeight,
+                maxHeight: _nativeAdViewHeight,
+                child: RepaintBoundary(child: AdWidget(ad: _nativeAd!)),
+              ),
             ),
           );
 

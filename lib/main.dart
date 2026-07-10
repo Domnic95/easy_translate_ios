@@ -1,12 +1,8 @@
 import 'dart:async';
 
-import 'utils/constants.dart';
-import 'screens/splash.dart';
-import 'utils/theme.dart';
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:easy_translate/Google_Ads/AdPools.dart';
+import 'package:easy_translate/Google_Ads/ConfigController.dart';
+import 'package:easy_translate/Google_Ads/SpHelper.dart';
 import 'package:easy_translate/providers/conversation_provider.dart';
 import 'package:easy_translate/providers/deps.dart';
 import 'package:easy_translate/providers/favorites_provider.dart';
@@ -15,9 +11,15 @@ import 'package:easy_translate/providers/ocr_provider.dart';
 import 'package:easy_translate/providers/settings_provider.dart';
 import 'package:easy_translate/providers/translation_provider.dart';
 import 'package:easy_translate/providers/voice_provider.dart';
-import 'package:easy_translate/Google_Ads/ConfigController.dart';
-import 'package:easy_translate/Google_Ads/SpHelper.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:provider/provider.dart';
+
+import 'screens/splash.dart';
+import 'utils/constants.dart';
+import 'utils/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -90,9 +92,11 @@ Future<void> _bootGoogleAds() async {
     debugPrint('MobileAds.initialize failed: $e');
   }
   await SpHelper().initialize();
+  attachConfigShutdownListener();
   unawaited(configController.getConfigFromSharedPreferences());
   unawaited(configController.fetchConfig());
   unawaited(appOpenAdManager.loadAd());
+  preloadAllAdsOnBoot();
 }
 
 class EasyTranslateApp extends StatelessWidget {

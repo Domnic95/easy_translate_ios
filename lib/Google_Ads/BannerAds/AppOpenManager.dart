@@ -12,7 +12,8 @@ class AppOpenAdManager {
   static const Duration _baseRetryDelay = Duration(seconds: 2);
   static const Duration _maxRetryDelay = Duration(seconds: 8);
   static const int _maxRetries = 20;
-  static const Duration _showWaitForLoad = Duration(seconds: 4);
+  static const Duration _showWaitForLoad = Duration(seconds: 10);
+  static const Duration _foregroundWait = Duration(seconds: 3);
 
   DateTime? _appOpenLoadTime;
   AppOpenAd? _appOpenAd;
@@ -21,17 +22,23 @@ class AppOpenAdManager {
   int _consecutiveFailures = 0;
   Timer? _retryTimer;
   VoidCallback? _configListener;
-  Completer<bool>? _adReadyCompleter;
 
   bool get isAdAvailable => _appOpenAd != null;
 
-  Future<bool> waitForAd({Duration timeout = const Duration(seconds: 8)}) {
-    if (isAdAvailable) return Future.value(true);
-    final completer = _adReadyCompleter ??= Completer<bool>();
-    if (!_isLoading) {
-      loadAd();
+  Future<bool> waitForAd({Duration timeout = const Duration(seconds: 8)}) async {
+    const interval = Duration(milliseconds: 50);
+    final deadline = DateTime.now().add(timeout);
+    while (DateTime.now().isBefore(deadline)) {
+      if (isAdAvailable) return true;
+      if (!_isLoading) {
+        _consecutiveFailures = 0;
+        _retryTimer?.cancel();
+        _retryTimer = null;
+        loadAd();
+      }
+      await Future.delayed(interval);
     }
-    return completer.future.timeout(timeout, onTimeout: () => false);
+    return isAdAvailable;
   }
 
   Future<void> loadAd({VoidCallback? onLoaded}) async {
@@ -84,9 +91,6 @@ class AppOpenAdManager {
           _appOpenAd = ad;
           _detachConfigListener();
           debugPrint('AppOpenAd loaded successfully.');
-          final c = _adReadyCompleter;
-          _adReadyCompleter = null;
-          if (c != null && !c.isCompleted) c.complete(true);
           onLoaded?.call();
         },
         onAdFailedToLoad: (error) {
@@ -96,9 +100,6 @@ class AppOpenAdManager {
             'AppOpenAd failed to load (attempt $_consecutiveFailures'
             '/$_maxRetries): $error',
           );
-          final c = _adReadyCompleter;
-          _adReadyCompleter = null;
-          if (c != null && !c.isCompleted) c.complete(false);
           _scheduleRetry();
         },
       ),
@@ -147,11 +148,19 @@ class AppOpenAdManager {
     _retryTimer?.cancel();
     _retryTimer = null;
     _detachConfigListener();
-    final c = _adReadyCompleter;
-    _adReadyCompleter = null;
-    if (c != null && !c.isCompleted) c.complete(false);
     _appOpenAd?.dispose();
     _appOpenAd = null;
+  }
+
+  void disposeActiveAd() {
+    _retryTimer?.cancel();
+    _retryTimer = null;
+    _detachConfigListener();
+    _consecutiveFailures = 0;
+    _appOpenAd?.dispose();
+    _appOpenAd = null;
+    _appOpenLoadTime = null;
+    _isLoading = false;
   }
 
   Future<void> showAdIfAvailable({
@@ -179,6 +188,7 @@ class AppOpenAdManager {
       } catch (e, st) {
         log('AppOpenAd: onAdDismissed threw: $e\n$st');
       }
+      nativeAdGate.open();
     }
 
     if (_isShowingAd) {
@@ -186,45 +196,39 @@ class AppOpenAdManager {
       return;
     }
 
-    if (!isAdAvailable && _isLoading) {
+    final loadedAt = _appOpenLoadTime;
+    if (_appOpenAd != null &&
+        (loadedAt == null ||
+            DateTime.now().subtract(maxCacheDuration).isAfter(loadedAt))) {
+      log('AppOpenAd: cached ad expired — dropping and reloading.');
+      _appOpenAd?.dispose();
+      _appOpenAd = null;
+      _appOpenLoadTime = null;
+    }
+
+    if (!isAdAvailable) {
       log(
-        'AppOpenAd: load in progress — waiting up to '
+        'AppOpenAd: no ad available — ensuring a load and waiting up to '
         '${_showWaitForLoad.inSeconds}s.',
       );
-      final waited = await _waitForLoad(_showWaitForLoad);
-      if (!waited) {
-        log('AppOpenAd: load did not finish in time; skipping this show.');
+      final gotIt = await _ensureLoaded(_showWaitForLoad);
+      if (!gotIt) {
+        log(
+          'AppOpenAd: could not load an ad within '
+          '${_showWaitForLoad.inSeconds}s — skipping this attempt. '
+          'A retry is already queued via loadAd().',
+        );
         fireDismissed();
         return;
       }
     }
 
-    if (!isAdAvailable) {
-      log('AppOpenAd: no ad available — kicking off a load for next time.');
-      _consecutiveFailures = 0;
-      loadAd();
-      fireDismissed();
-      return;
-    }
-
-    final loadedAt = _appOpenLoadTime;
-    if (loadedAt == null ||
-        DateTime.now().subtract(maxCacheDuration).isAfter(loadedAt)) {
-      log('AppOpenAd: cache missing or expired — reloading.');
-      _appOpenAd?.dispose();
-      _appOpenAd = null;
-      _appOpenLoadTime = null;
-      _consecutiveFailures = 0;
-      loadAd();
-      fireDismissed();
-      return;
-    }
-
-    final isForeground = await _waitForForeground();
+    final isForeground = await _waitForForeground(timeout: _foregroundWait);
     if (!isForeground) {
       log(
-        'AppOpenAd: app never reached RESUMED, skipping show(). Will '
-        'retry on next foreground event.',
+        'AppOpenAd: app never reached RESUMED within '
+        '${_foregroundWait.inSeconds}s, skipping show(). Will retry on '
+        'next foreground event.',
       );
       fireDismissed();
       return;
@@ -260,20 +264,25 @@ class AppOpenAdManager {
     _appOpenAd!.show();
   }
 
-  Future<bool> _waitForLoad(Duration timeout) async {
-    const interval = Duration(milliseconds: 80);
+  Future<bool> _ensureLoaded(Duration timeout) async {
+    const interval = Duration(milliseconds: 50);
     final deadline = DateTime.now().add(timeout);
     while (DateTime.now().isBefore(deadline)) {
       if (_appOpenAd != null) return true;
-      if (!_isLoading) return _appOpenAd != null;
+      if (!_isLoading) {
+        _consecutiveFailures = 0;
+        _retryTimer?.cancel();
+        _retryTimer = null;
+        loadAd();
+      }
       await Future.delayed(interval);
     }
     return _appOpenAd != null;
   }
 
   Future<bool> _waitForForeground({
-    Duration timeout = const Duration(seconds: 3),
-    Duration interval = const Duration(milliseconds: 100),
+    Duration timeout = const Duration(milliseconds: 1500),
+    Duration interval = const Duration(milliseconds: 30),
   }) async {
     if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
       return true;

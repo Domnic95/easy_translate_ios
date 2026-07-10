@@ -1,10 +1,12 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:easy_translate/Google_Ads/ShowAds.dart';
 import 'package:easy_translate/models/language.dart';
 import 'package:easy_translate/providers/deps.dart';
 import 'package:easy_translate/services/ocr_service.dart';
 import 'package:easy_translate/widgets/language_picker.dart';
+import 'package:easy_translate/utils/error_messages.dart';
 import 'package:easy_translate/widgets/translation_overlay.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -34,6 +36,9 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
   bool _openedOnce = false;
   final Set<String> _tempFiles = {};
 
+  bool _backHandling = false;
+  Timer? _backFallback;
+
   void _trackTemp(String path) {
     _tempFiles.add(path);
   }
@@ -58,12 +63,31 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
 
   @override
   void dispose() {
+    _backFallback?.cancel();
     final stale = _imagePath;
     if (stale != null) {
       imageCache.evict(FileImage(File(stale)));
     }
     unawaited(_deleteTrackedTemps());
     super.dispose();
+  }
+
+  Future<void> _handleBack() async {
+    if (_backHandling) return;
+    _backHandling = true;
+
+    final navigator = Navigator.of(context);
+
+    void doPop() {
+      _backFallback?.cancel();
+      _backFallback = null;
+      if (!mounted) return;
+      if (navigator.canPop()) navigator.pop();
+      _backHandling = false;
+    }
+
+    _backFallback = Timer(const Duration(milliseconds: 2500), doPop);
+    ShowInterstitialAds().showBackInterstitialAds(onBeforeShow: doPop);
   }
 
   Future<void> _pickAndProcess() async {
@@ -74,16 +98,10 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
       _error = null;
     });
     try {
-      suppressAppOpenAdOnNextResume = true;
-      final XFile? picked;
-      try {
-        picked = await _picker.pickImage(
-          source: ImageSource.gallery,
-          imageQuality: 95,
-        );
-      } finally {
-        suppressAppOpenAdOnNextResume = false;
-      }
+      final XFile? picked = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 95,
+      );
       if (picked == null) {
         if (mounted && req == _pickReq) setState(() => _busy = false);
         if (_imagePath == null && mounted) Navigator.of(context).maybePop();
@@ -149,7 +167,7 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
     } catch (e) {
       if (mounted && req == _pickReq) {
         setState(() {
-          _error = e.toString();
+          _error = friendlyTranslationError(e);
           _busy = false;
         });
       }
@@ -290,7 +308,13 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         fit: StackFit.expand,
@@ -303,7 +327,7 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
                 _TopBar(
                   source: Languages.byCode(_source),
                   target: Languages.byCode(_target),
-                  onClose: () => Navigator.of(context).maybePop(),
+                  onClose: _handleBack,
                   onPickSource: _pickSource,
                   onPickTarget: _pickTarget,
                   onSwap: _swapLangs,
@@ -338,6 +362,7 @@ class _GalleryTranslateScreenState extends State<GalleryTranslateScreen> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

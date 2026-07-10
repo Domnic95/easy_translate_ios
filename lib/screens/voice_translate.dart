@@ -1,16 +1,17 @@
 import 'dart:async';
 
-import 'package:provider/provider.dart';
-import '../utils/constants.dart';
-import '../utils/extensions.dart';
-import 'package:flutter/material.dart';
-
-import 'package:flutter_animate/flutter_animate.dart';
-import 'package:easy_translate/widgets/pulsing_mic.dart';
+import 'package:easy_translate/Google_Ads/Native_Ads/NativeAdManager.dart';
+import 'package:easy_translate/Google_Ads/ShowAds.dart';
+import 'package:easy_translate/providers/voice_provider.dart';
 import 'package:easy_translate/widgets/language_chip.dart';
 import 'package:easy_translate/widgets/language_picker.dart';
-import 'package:easy_translate/providers/voice_provider.dart';
-import 'package:easy_translate/Google_Ads/Native_Ads/NativeAdManager.dart';
+import 'package:easy_translate/widgets/pulsing_mic.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
+import 'package:provider/provider.dart';
+
+import '../utils/constants.dart';
+import '../utils/extensions.dart';
 
 class VoiceTranslateScreen extends StatefulWidget {
   const VoiceTranslateScreen({super.key});
@@ -20,6 +21,9 @@ class VoiceTranslateScreen extends StatefulWidget {
 
 class _VoiceTranslateScreenState extends State<VoiceTranslateScreen> {
   VoiceProvider? _provider;
+
+  bool _backHandling = false;
+  Timer? _backFallback;
 
   @override
   void initState() {
@@ -39,15 +43,40 @@ class _VoiceTranslateScreenState extends State<VoiceTranslateScreen> {
 
   @override
   void dispose() {
+    _backFallback?.cancel();
     unawaited(_provider?.reset());
     super.dispose();
+  }
+
+  Future<void> _handleBack() async {
+    if (_backHandling) return;
+    _backHandling = true;
+
+    final navigator = Navigator.of(context);
+
+    void doPop() {
+      _backFallback?.cancel();
+      _backFallback = null;
+      if (!mounted) return;
+      if (navigator.canPop()) navigator.pop();
+      _backHandling = false;
+    }
+
+    _backFallback = Timer(const Duration(milliseconds: 2500), doPop);
+    ShowInterstitialAds().showBackInterstitialAds(onBeforeShow: doPop);
   }
 
   @override
   Widget build(BuildContext context) {
     final p = context.watch<VoiceProvider>();
-    return Scaffold(
-      appBar: AppBar(title: const Text(S.voiceTranslate)),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleBack();
+      },
+      child: Scaffold(
+        appBar: AppBar(title: const Text(S.voiceTranslate)),
       body: SafeArea(
         bottom: false,
         child: Padding(
@@ -124,7 +153,8 @@ class _VoiceTranslateScreenState extends State<VoiceTranslateScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: const NativeAdManager(),
+        bottomNavigationBar: SafeArea(child: const NativeAdManager()),
+      ),
     );
   }
 }

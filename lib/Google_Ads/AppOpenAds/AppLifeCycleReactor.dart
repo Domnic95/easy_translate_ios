@@ -24,6 +24,12 @@ class AppLifecycleReactor {
 
   void _onAppStateChanged(AppState appState) {
     log('New AppState state: $appState');
+    if (appState == AppState.background) {
+      if (!appOpenAdManager.isAdAvailable) {
+        appOpenAdManager.loadAd();
+      }
+      return;
+    }
     if (appState == AppState.foreground) {
       if (suppressAppOpenAdOnNextResume) {
         suppressAppOpenAdOnNextResume = false;

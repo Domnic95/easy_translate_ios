@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:ui';
 
+import 'package:easy_translate/Google_Ads/AdPools.dart';
 import 'package:easy_translate/Google_Ads/ConfigController.dart';
 import 'package:easy_translate/Google_Ads/ConfigModel.dart';
 import 'package:easy_translate/Google_Ads/Native_Ads/ExpandedNativeAdShimmer.dart';
@@ -27,7 +28,9 @@ class _ExpandedNativeAdManagerState extends State<ExpandedNativeAdManager> {
   bool? _currentIsDark;
   int _retryCount = 0;
   Timer? _retryTimer;
-  VoidCallback? _configListener;
+  VoidCallback? _configWaitListener;
+  VoidCallback? _configShutdownListener;
+  int _lastShutdownRev = configController.adsShutdownRevision;
 
   static const int _maxRetries = 5;
 
@@ -39,6 +42,9 @@ class _ExpandedNativeAdManagerState extends State<ExpandedNativeAdManager> {
   @override
   void initState() {
     super.initState();
+    _configShutdownListener = _onConfigShutdown;
+    configController.addListener(_configShutdownListener!);
+
     final isDark =
         PlatformDispatcher.instance.platformBrightness == Brightness.dark;
     _currentIsDark = isDark;
@@ -58,31 +64,49 @@ class _ExpandedNativeAdManagerState extends State<ExpandedNativeAdManager> {
   @override
   void dispose() {
     _retryTimer?.cancel();
-    _detachConfigListener();
+    _detachConfigWaitListener();
+    final l = _configShutdownListener;
+    if (l != null) configController.removeListener(l);
+    _configShutdownListener = null;
     _nativeAd?.dispose();
     super.dispose();
   }
 
-  void _detachConfigListener() {
-    final l = _configListener;
+  void _detachConfigWaitListener() {
+    final l = _configWaitListener;
     if (l == null) return;
     configController.removeListener(l);
-    _configListener = null;
+    _configWaitListener = null;
   }
 
   void _waitForConfigAndRetry({required bool isDark}) {
-    if (_configListener != null) return;
+    if (_configWaitListener != null) return;
     void listener() {
       if (ConfigController.cached == null) return;
-      _detachConfigListener();
+      _detachConfigWaitListener();
       log('ExpandedNative: config arrived, retrying load.');
       _initIfEnabled(isDark: isDark);
     }
 
-    _configListener = listener;
+    _configWaitListener = listener;
     configController.addListener(listener);
     if (ConfigController.cached != null) {
       listener();
+    }
+  }
+
+  void _onConfigShutdown() {
+    if (!mounted) return;
+    final rev = configController.adsShutdownRevision;
+    if (rev > _lastShutdownRev) {
+      _lastShutdownRev = rev;
+      _retryTimer?.cancel();
+      _nativeAd?.dispose();
+      _nativeAd = null;
+      setState(() {
+        _isLoaded = false;
+        _failed = true;
+      });
     }
   }
 
@@ -153,6 +177,24 @@ class _ExpandedNativeAdManagerState extends State<ExpandedNativeAdManager> {
       if (!mounted) return;
     }
 
+    final pooled = NativeAdPool.instance.take(
+      'expandedNativeAd',
+      isDark: isDark,
+    );
+    if (pooled != null) {
+      if (!mounted) {
+        pooled.dispose();
+        return;
+      }
+      _nativeAd?.dispose();
+      _nativeAd = pooled;
+      _retryCount = 0;
+      _retryTimer?.cancel();
+      _detachConfigWaitListener();
+      setState(() => _isLoaded = true);
+      return;
+    }
+
     final ad = NativeAd(
       adUnitId: adUnitId,
       request: const AdRequest(),
@@ -165,7 +207,7 @@ class _ExpandedNativeAdManagerState extends State<ExpandedNativeAdManager> {
           log('$loaded loaded (expanded).');
           _retryCount = 0;
           _retryTimer?.cancel();
-          _detachConfigListener();
+          _detachConfigWaitListener();
           if (!mounted) {
             loaded.dispose();
             return;
